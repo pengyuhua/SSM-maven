@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="${data.packageName}.dao.${data.className}DAO">
+
+	<!-- ${data.describe}字段与DTO映射 -->
+	<resultMap id="${data.lowerClassName}DTO" type="${data.packageName}.dto.${data.className}DTO">
+		@for(c in data.columns){
+		<result column="${c.column}" property="${c.property}" javaType="${c.fullPathJavaType}" /><!--${c.simpleColumnComment}-->
+		@}
+	</resultMap>
+
+	<sql id="Base_Column_List">
+		@for(c in data.columns){
+		@if(cLP.last){
+		`${c.column}`
+		@} else {
+		`${c.column}`,
+		@}
+		@}
+	</sql>
+
+	<!-- 通用查询条件 -->
+	<sql id="Search_Conditon_Common">
+		@for(c in data.columns){
+		@if(c.javaType=="Date" || c.interval){
+		<if test=" ${c.property}_Start != null ">
+			AND `${c.column}` <![CDATA[>=]]> #{${c.property}_Start}
+		</if>
+		<if test=" ${c.property}_End != null ">
+			AND `${c.column}` <![CDATA[<=]]> #{${c.property}_End}
+		</if>
+		@}
+		@if(c.like){
+		<if test=" ${c.property} != null ">
+			AND `${c.column}` LIKE "%\${${c.property}}%"
+		</if>
+		@} else {
+		<if test=" ${c.property} != null ">
+			AND `${c.column}`=#{${c.property}}
+		</if>
+		@}
+		@}
+	</sql>
+
+	<!--根据条件获取${data.className}列表-->
+	<select id="get${data.className}List" resultMap="${data.lowerClassName}DTO" parameterType="java.util.Map">
+		SELECT
+		<include refid="Base_Column_List" />
+		FROM `${data.tableInfo.table}`
+		<where>
+			<include refid="Search_Conditon_Common" />
+			@if(data.tableInfo.logicDel){
+			AND `${data.tableInfo.delFiled}` = 0
+			@}
+		</where>
+		<!-- ORDER BY ${data.lowerClassName}_id DESC -->
+	</select>
+
+	<!--根据条件获取${data.className}总数-->
+	<select id="get${data.className}ListCount" parameterType="java.util.Map" resultType="java.lang.Long">
+		SELECT COUNT(1) FROM `${data.tableInfo.table}`
+		<where>
+			<include refid="Search_Conditon_Common" />
+		</where>
+	</select>
+
+	<!--添加${data.className}-->
+	<insert id="add${data.className}" parameterType="${data.packageName}.dto.${data.className}DTO" useGeneratedKeys="true" keyProperty="id">
+		INSERT INTO `${data.tableInfo.table}`(
+		<trim suffixOverrides=",">
+			@for(c in data.columns){
+			<if test="${c.property}!=null">
+				`${c.column}`,
+			</if>
+			@}
+		</trim>
+		)VALUES(
+		<trim suffixOverrides=",">
+			@for(c in data.columns){
+			<if test="${c.property}!=null">
+				#{${c.property}},
+			</if>
+			@}
+		</trim>
+		)
+	</insert>
+
+	<!--根据ID删除${data.className}-->
+	<delete id="delete${data.className}ById" parameterType="java.lang.Long">
+		DELETE FROM `${data.tableInfo.table}`
+		WHERE ${data.lowerClassName}_id=#{id}
+	</delete>
+
+	@if(data.tableInfo.logicDel){
+	<!--逻辑删除${data.className}-->
+	<update id="logicDelete${data.className}ById" parameterType="java.lang.Long">
+		UPDATE `${data.tableInfo.table}`
+		SET `${data.tableInfo.delFiled}` = 1
+		WHERE ${data.lowerClassName}_id=#{id}
+	</update>
+	@}
+
+	<!--根据ID更新${data.className}-->
+	<update id="update${data.className}" parameterType="${data.packageName}.dto.${data.className}DTO">
+		UPDATE `${data.tableInfo.table}`
+		<trim prefix="set" suffixOverrides=",">
+			@for(c in data.columns){
+			<if test=" ${c.property} != null">
+				`${c.column}`=#{${c.property}},
+			</if>
+			@}
+		</trim>
+		WHERE ${data.lowerClassName}_id=#{id}
+		@if(data.tableInfo.useLock){
+		AND `${data.tableInfo.lockFiled}` <![CDATA[<]]> #{${data.tableInfo.lockFiledProperty}}  <!--启用乐观锁-->
+		@}
+	</update>
+
+	<!--根据id查询${data.className}-->
+	<select id="get${data.className}ById" resultMap="${data.lowerClassName}DTO" parameterType="java.lang.Long">
+		SELECT
+		<include refid="Base_Column_List" />
+		FROM `${data.tableInfo.table}`
+		WHERE ${data.lowerClassName}_id=#{id}
+		@if(data.tableInfo.logicDel){
+		AND `${data.tableInfo.delFiled}` = 0
+		@}
+	</select>
+
+</mapper>
